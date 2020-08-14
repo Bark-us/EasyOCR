@@ -570,3 +570,11 @@ def get_paragraph(raw_result, x_ths=1, y_ths=0.5, mode = 'ltr'):
         result.append([ [[min_gx,min_gy],[max_gx,min_gy],[max_gx,max_gy],[min_gx,max_gy]], text[1:]])
 
     return result
+
+
+def filter_small_text(boxes, min_height):
+    box_array = np.array(boxes)
+    box_height = box_array[3] - box_array[2]
+    box_array = box_array[box_height >= min_height]
+
+    return box_array.tolist()
