@@ -327,7 +327,6 @@ class Reader(object):
                 horizontal_list_filter = filter_small_text(horizontal_list_filter, min_height * ratio)
             if len(free_list_filter) > 0:
                 free_list_filter = filter_small_text(free_list_filter, min_height * ratio)
-            print(((len(horizontal_list_filter) + len(free_list_filter)) / starting_boxes))
             if len(horizontal_list_filter) + len(free_list_filter) == 0 or \
                     ((len(horizontal_list_filter) + len(free_list_filter)) / starting_boxes < retained_threshold):
                 return None
