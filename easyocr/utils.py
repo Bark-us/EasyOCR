@@ -574,7 +574,14 @@ def get_paragraph(raw_result, x_ths=1, y_ths=0.5, mode = 'ltr'):
 
 def filter_small_text(boxes, min_height):
     box_array = np.array(boxes)
-    box_height = box_array[3] - box_array[2]
+    if len(box_array.shape) == 2:
+        box_height = box_array[..., 3] - box_array[..., 2]
+    else:
+        heightA = np.sqrt(((box_array[:, 1, 0] - box_array[:, 2, 0]) ** 2) +
+                          ((box_array[:, 1, 1] - box_array[:, 2, 1]) ** 2))
+        heightB = np.sqrt(((box_array[:, 0, 0] - box_array[:, 3, 0]) ** 2) +
+                          ((box_array[:, 0, 1] - box_array[:, 3, 1]) ** 2))
+        box_height = np.maximum(heightA.astype('int'), heightB.astype('int'))
     box_array = box_array[box_height >= min_height]
 
     return box_array.tolist()

@@ -319,11 +319,15 @@ class Reader(object):
 
         # should add filter to screen small box out
         if min_height is not None:
+            height, width, channel = img.shape
+            ratio = canvas_size / max(height, width)
             starting_boxes = len(horizontal_list) + len(free_list)
-            horizontal_list = filter_small_text(horizontal_list, min_height)
-            free_list = filter_small_text(free_list, min_height)
-
-            if (len(horizontal_list) + len(free_list)) / starting_boxes < retained_threshold:
+            if len(horizontal_list) > 0:
+                horizontal_list = filter_small_text(horizontal_list, min_height * ratio)
+            if len(free_list) > 0:
+                free_list = filter_small_text(free_list, min_height * ratio)
+            if len(horizontal_list) + len(free_list) == 0 or \
+                    ((len(horizontal_list) + len(free_list)) / starting_boxes < retained_threshold):
                 return None
 
         image_list, max_width = get_image_list(horizontal_list, free_list, img_cv_grey, model_height = imgH)
