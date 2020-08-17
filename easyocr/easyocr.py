@@ -284,7 +284,7 @@ class Reader(object):
                  text_threshold = 0.7, low_text = 0.4, link_threshold = 0.4,\
                  canvas_size = 2560, mag_ratio = 1.,\
                  slope_ths = 0.1, ycenter_ths = 0.5, height_ths = 0.5,\
-                 width_ths = 0.5, add_margin = 0.1, min_height=15, retained_threshold=0.5):
+                 width_ths = 0.5, add_margin = 0.1, min_height=14, retained_threshold=0.33):
         '''
         Parameters:
         file: file path or numpy-array or a byte stream object
@@ -322,12 +322,14 @@ class Reader(object):
             height, width, channel = img.shape
             ratio = canvas_size / max(height, width)
             starting_boxes = len(horizontal_list) + len(free_list)
-            if len(horizontal_list) > 0:
-                horizontal_list = filter_small_text(horizontal_list, min_height * ratio)
-            if len(free_list) > 0:
-                free_list = filter_small_text(free_list, min_height * ratio)
-            if len(horizontal_list) + len(free_list) == 0 or \
-                    ((len(horizontal_list) + len(free_list)) / starting_boxes < retained_threshold):
+            horizontal_list_filter, free_list_filter = horizontal_list, free_list
+            if len(horizontal_list_filter) > 0:
+                horizontal_list_filter = filter_small_text(horizontal_list_filter, min_height * ratio)
+            if len(free_list_filter) > 0:
+                free_list_filter = filter_small_text(free_list_filter, min_height * ratio)
+            print(((len(horizontal_list_filter) + len(free_list_filter)) / starting_boxes))
+            if len(horizontal_list_filter) + len(free_list_filter) == 0 or \
+                    ((len(horizontal_list_filter) + len(free_list_filter)) / starting_boxes < retained_threshold):
                 return None
 
         image_list, max_width = get_image_list(horizontal_list, free_list, img_cv_grey, model_height = imgH)
