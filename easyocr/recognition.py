@@ -8,6 +8,7 @@ import numpy as np
 from collections import OrderedDict
 import requests
 import io
+import time
 
 from .model import Model
 from .utils import CTCLabelConverter
@@ -113,16 +114,18 @@ def recognizer_predict(model, converter, test_loader, batch_max_length,\
                 torch.save(image_tensors, image_buffer)
                 response = requests.post('http://127.0.0.1:8080/predictions/text',
                                          data=image_buffer.getvalue())
-                print('response size', len(response.content))
-                print('time elapsed', response.elapsed)
+                # print('response size', len(response.content))
+                # print('time elapsed', response.elapsed)
                 image_buffer.close()
                 response_buffer = io.BytesIO(response.content)
-                preds = torch.load(response_buffer, map_location='cpu')[0]
+                preds = torch.load(response_buffer, map_location='cpu')
                 response_buffer.close()
             else:
                 image = image_tensors.to(device)
                 text_for_pred = torch.LongTensor(batch_size, batch_max_length + 1).fill_(0).to(device)
+                # start = time.time()
                 preds = model(image, text_for_pred)
+                # print('time elapsed ', time.time() - start)
 
             # Select max probabilty (greedy decoding) then decode index to character
             preds_size = torch.IntTensor([preds.size(1)] * batch_size)

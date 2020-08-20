@@ -1,9 +1,10 @@
 import torch
-from ts.torch_handler.base_handler import BaseHandler
 import io
+from ts.torch_handler.base_handler import BaseHandler
 
 
 class CraftHandler(BaseHandler):
+
 
     def preprocess(self, data):
         """

@@ -37,6 +37,6 @@ class TextHandler(BaseHandler):
         :return: Python list
         """
         buffer = io.BytesIO()
-        torch.save(data.unsqueeze(0), buffer)
+        torch.save(data, buffer)
         return_data = [buffer.getvalue()]
         return return_data

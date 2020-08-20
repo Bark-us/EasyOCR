@@ -6,6 +6,7 @@ from collections import OrderedDict
 import pickle
 import requests
 import io
+import time
 
 import cv2
 import numpy as np
@@ -43,14 +44,13 @@ def test_net(canvas_size, mag_ratio, net, image, text_threshold, link_threshold,
         torch.save(x.unsqueeze(0), buffer)
         response = requests.post('http://127.0.0.1:8080/predictions/craft',
                                  data=buffer.getvalue())
-        print('response size', len(response.content))
-        print('time elapsed', response.elapsed)
+        # print('response size', len(response.content))
+        # print('time elapsed', response.elapsed)
         buffer.close()
         response_buffer = io.BytesIO(response.content)
         y = torch.load(response_buffer, map_location='cpu')
         response_buffer.close()
 
-        # y = torch.tensor(response.json())
         score_text = y[0, ..., 0].cpu().data.numpy()
         score_link = y[0, ..., 1].cpu().data.numpy()
     else:
@@ -59,7 +59,9 @@ def test_net(canvas_size, mag_ratio, net, image, text_threshold, link_threshold,
 
         # forward pass
         with torch.no_grad():
+            # start = time.time()
             y, feature = net(x)
+            # print('time elapsed ', time.time()-start)
 
         # make score and link map
         score_text = y[0,:,:,0].cpu().data.numpy()
