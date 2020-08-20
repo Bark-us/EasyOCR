@@ -6,6 +6,8 @@ import torch.nn.functional as F
 import torchvision.transforms as transforms
 import numpy as np
 from collections import OrderedDict
+import requests
+import io
 
 from .model import Model
 from .utils import CTCLabelConverter
@@ -95,18 +97,28 @@ class AlignCollate(object):
         return image_tensors
 
 def recognizer_predict(model, converter, test_loader, batch_max_length,\
-                       ignore_idx, char_group_idx, decoder = 'greedy', beamWidth= 5, device = 'cpu'):
-    model.eval()
+                       ignore_idx, char_group_idx, decoder = 'greedy', beamWidth= 5, device = 'cpu', torchserve=False):
+    if not torchserve:
+        model.eval()
     result = []
     with torch.no_grad():
         for image_tensors in test_loader:
             batch_size = image_tensors.size(0)
-            image = image_tensors.to(device)
             # For max length prediction
-            length_for_pred = torch.IntTensor([batch_max_length] * batch_size).to(device)
-            text_for_pred = torch.LongTensor(batch_size, batch_max_length + 1).fill_(0).to(device)
+            # length_for_pred = torch.IntTensor([batch_max_length] * batch_size).to(device)
 
-            preds = model(image, text_for_pred)
+            if torchserve:
+                # Send to TorchServe version of recognizer
+                image_buffer = io.BytesIO()
+                torch.save(image_tensors, image_buffer)
+                response = requests.post('http://localhost:8080/predictions/text',
+                                         data=image_buffer.getvalue())
+                image_buffer.close()
+                preds = torch.tensor(response.json())
+            else:
+                image = image_tensors.to(device)
+                text_for_pred = torch.LongTensor(batch_size, batch_max_length + 1).fill_(0).to(device)
+                preds = model(image, text_for_pred)
 
             # Select max probabilty (greedy decoding) then decode index to character
             preds_size = torch.IntTensor([preds.size(1)] * batch_size)
@@ -117,7 +129,9 @@ def recognizer_predict(model, converter, test_loader, batch_max_length,\
             preds_prob[:,:,ignore_idx] = 0.
             pred_norm = preds_prob.sum(axis=2)
             preds_prob = preds_prob/np.expand_dims(pred_norm, axis=-1)
-            preds_prob = torch.from_numpy(preds_prob).float().to(device)
+            preds_prob = torch.from_numpy(preds_prob).float()
+            if not torchserve:
+                preds_prob = preds_prob.to(device)
 
             if decoder == 'greedy':
                 # Select max probabilty (greedy decoding) then decode index to character
@@ -140,29 +154,35 @@ def recognizer_predict(model, converter, test_loader, batch_max_length,\
 
     return result
 
+
 def get_recognizer(input_channel, output_channel, hidden_size, character,\
-                   separator_list, dict_list, model_path, device = 'cpu'):
+                   separator_list, dict_list, model_path, device = 'cpu', torchserve=False):
 
     converter = CTCLabelConverter(character, separator_list, dict_list)
-    num_class = len(converter.character)
-    model = Model(input_channel, output_channel, hidden_size, num_class)
 
-    if device == 'cpu':
-        state_dict = torch.load(model_path, map_location=device)
-        new_state_dict = OrderedDict()
-        for key, value in state_dict.items():
-            new_key = key[7:]
-            new_state_dict[new_key] = value
-        model.load_state_dict(new_state_dict)
+    if torchserve:
+        model = None
     else:
-        model = torch.nn.DataParallel(model).to(device)
-        model.load_state_dict(torch.load(model_path, map_location=device))
+        num_class = len(converter.character)
+        model = Model(input_channel, output_channel, hidden_size, num_class)
+
+        if device == 'cpu':
+            state_dict = torch.load(model_path, map_location=device)
+            new_state_dict = OrderedDict()
+            for key, value in state_dict.items():
+                new_key = key[7:]
+                new_state_dict[new_key] = value
+            model.load_state_dict(new_state_dict)
+        else:
+            model = torch.nn.DataParallel(model).to(device)
+            model.load_state_dict(torch.load(model_path, map_location=device))
 
     return model, converter
 
+
 def get_text(character, imgH, imgW, recognizer, converter, image_list,\
              ignore_char = '',decoder = 'greedy', beamWidth =5, batch_size=1, contrast_ths=0.1,\
-             adjust_contrast=0.5, filter_ths = 0.003, workers = 1, device = 'cpu'):
+             adjust_contrast=0.5, filter_ths = 0.003, workers = 1, device = 'cpu', torchserve=False):
     batch_max_length = int(imgW/10)
 
     char_group_idx = {}
@@ -177,11 +197,12 @@ def get_text(character, imgH, imgW, recognizer, converter, image_list,\
     test_data = ListDataset(img_list)
     test_loader = torch.utils.data.DataLoader(
         test_data, batch_size=batch_size, shuffle=False,
-        num_workers=int(workers), collate_fn=AlignCollate_normal, pin_memory=True)
+        num_workers=int(workers), collate_fn=AlignCollate_normal, pin_memory=False if torchserve else True)
 
     # predict first round
     result1 = recognizer_predict(recognizer, converter, test_loader,batch_max_length,\
-                                 ignore_idx, char_group_idx, decoder, beamWidth, device = device)
+                                 ignore_idx, char_group_idx, decoder, beamWidth,
+                                 device=device, torchserve=torchserve)
 
     # predict second round
     low_confident_idx = [i for i,item in enumerate(result1) if (item[1] < contrast_ths)]
@@ -190,10 +211,12 @@ def get_text(character, imgH, imgW, recognizer, converter, image_list,\
         AlignCollate_contrast = AlignCollate(imgH=imgH, imgW=imgW, keep_ratio_with_pad=True, adjust_contrast=adjust_contrast)
         test_data = ListDataset(img_list2)
         test_loader = torch.utils.data.DataLoader(
-                        test_data, batch_size=batch_size, shuffle=False,
-                        num_workers=int(workers), collate_fn=AlignCollate_contrast, pin_memory=True)
+            test_data, batch_size=batch_size, shuffle=False,
+            num_workers=int(workers), collate_fn=AlignCollate_contrast,
+            pin_memory=False if torchserve else True)
         result2 = recognizer_predict(recognizer, converter, test_loader, batch_max_length,\
-                                     ignore_idx, char_group_idx, decoder, beamWidth, device = device)
+                                     ignore_idx, char_group_idx, decoder, beamWidth,
+                                     device=device, torchserve=torchserve)
 
     result = []
     for i, zipped in enumerate(zip(coord, result1)):

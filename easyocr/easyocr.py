@@ -67,7 +67,7 @@ model_url = {
 
 class Reader(object):
 
-    def __init__(self, lang_list, gpu=True, model_storage_directory=None, download_enabled=True):
+    def __init__(self, lang_list, gpu=True, model_storage_directory=None, download_enabled=True, torchserve=False):
         """Create an EasyOCR Reader.
 
         Parameters:
@@ -98,6 +98,9 @@ class Reader(object):
             self.device = 'cuda'
         else:
             self.device = gpu
+
+        # serve models using TorchServe
+        self.torchserve = torchserve
 
         # check available languages
         unknown_lang = set(lang_list) - set(all_lang_list)
@@ -272,10 +275,17 @@ class Reader(object):
             assert calculate_md5(model_path) == model_url[model_file][1], corrupt_msg
             LOGGER.info('Download complete')
 
-        self.detector = get_detector(detector_path, self.device)
-        self.recognizer, self.converter = get_recognizer(input_channel, output_channel,\
-                                                         hidden_size, self.character, separator_list,\
-                                                         dict_list, model_path, device = self.device)
+        if torchserve:
+            _, self.converter = get_recognizer(input_channel, output_channel,
+                                               hidden_size, self.character, separator_list,
+                                               dict_list, model_path, device = self.device, torchserve=self.torchserve)
+            self.detector, self.recognizer = None, None
+        else:
+            self.detector = get_detector(detector_path, self.device)
+            self.recognizer, self.converter = get_recognizer(input_channel, output_channel,
+                                                             hidden_size, self.character, separator_list,
+                                                             dict_list, model_path, device = self.device)
+
 
     def readtext(self, image, decoder = 'greedy', beamWidth= 5, batch_size = 1,\
                  workers = 0, allowlist = None, blocklist = None, detail = 1,\
@@ -314,7 +324,7 @@ class Reader(object):
                 img_cv_grey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
         text_box = get_textbox(self.detector, img, canvas_size, mag_ratio, text_threshold,\
-                               link_threshold, low_text, False, self.device)
+                               link_threshold, low_text, False, self.device, self.torchserve)
         horizontal_list, free_list = group_text_box(text_box, slope_ths, ycenter_ths, height_ths, width_ths, add_margin)
 
         # should add filter to screen small box out
@@ -343,7 +353,7 @@ class Reader(object):
         if self.model_lang in ['chinese_tra','chinese_sim', 'japanese', 'korean']: decoder = 'greedy'
         result = get_text(self.character, imgH, int(max_width), self.recognizer, self.converter, image_list,\
                       ignore_char, decoder, beamWidth, batch_size, contrast_ths, adjust_contrast, filter_ths,\
-                      workers, self.device)
+                      workers, self.device, self.torchserve)
 
         if self.model_lang == 'arabic':
             direction_mode = 'rtl'
