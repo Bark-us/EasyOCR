@@ -36,4 +36,7 @@ class TextHandler(BaseHandler):
         :param data: Torch tensor, containing prediction output from the model
         :return: Python list
         """
-        return data.unsqueeze(0).tolist()
+        buffer = io.BytesIO()
+        torch.save(data.unsqueeze(0), buffer)
+        return_data = [buffer.getvalue()]
+        return return_data

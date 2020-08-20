@@ -41,13 +41,18 @@ def test_net(canvas_size, mag_ratio, net, image, text_threshold, link_threshold,
         # Send to TorchServe version of CRAFT
         buffer = io.BytesIO()
         torch.save(x.unsqueeze(0), buffer)
-        response = requests.post('http://localhost:8080/predictions/craft',
+        response = requests.post('http://127.0.0.1:8080/predictions/craft',
                                  data=buffer.getvalue())
+        print('response size', len(response.content))
+        print('time elapsed', response.elapsed)
         buffer.close()
+        response_buffer = io.BytesIO(response.content)
+        y = torch.load(response_buffer, map_location='cpu')
+        response_buffer.close()
 
-        y = torch.tensor(response.json())
-        score_text = y[..., 0].cpu().data.numpy()
-        score_link = y[..., 1].cpu().data.numpy()
+        # y = torch.tensor(response.json())
+        score_text = y[0, ..., 0].cpu().data.numpy()
+        score_link = y[0, ..., 1].cpu().data.numpy()
     else:
         x = Variable(x.unsqueeze(0))                # [c, h, w] to [b, c, h, w]
         x = x.to(device)

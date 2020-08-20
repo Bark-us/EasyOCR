@@ -22,4 +22,7 @@ class CraftHandler(BaseHandler):
         :param data: Torch tensor, containing prediction output from the model
         :return: Python list
         """
-        return data.tolist()
+        buffer = io.BytesIO()
+        torch.save(data, buffer)
+        return_data = [buffer.getvalue()]
+        return return_data

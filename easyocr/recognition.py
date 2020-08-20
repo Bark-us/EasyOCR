@@ -111,10 +111,14 @@ def recognizer_predict(model, converter, test_loader, batch_max_length,\
                 # Send to TorchServe version of recognizer
                 image_buffer = io.BytesIO()
                 torch.save(image_tensors, image_buffer)
-                response = requests.post('http://localhost:8080/predictions/text',
+                response = requests.post('http://127.0.0.1:8080/predictions/text',
                                          data=image_buffer.getvalue())
+                print('response size', len(response.content))
+                print('time elapsed', response.elapsed)
                 image_buffer.close()
-                preds = torch.tensor(response.json())
+                response_buffer = io.BytesIO(response.content)
+                preds = torch.load(response_buffer, map_location='cpu')[0]
+                response_buffer.close()
             else:
                 image = image_tensors.to(device)
                 text_for_pred = torch.LongTensor(batch_size, batch_max_length + 1).fill_(0).to(device)
