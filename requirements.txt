@@ -6,3 +6,5 @@ numpy
 Pillow
 scikit-image
 python-bidi
+torchserve
+torch-model-archiver
