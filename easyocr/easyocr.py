@@ -328,7 +328,9 @@ class Reader(object):
         horizontal_list, free_list = group_text_box(text_box, slope_ths, ycenter_ths, height_ths, width_ths, add_margin)
 
         # should add filter to screen small box out
-        if min_height is not None:
+        if len(horizontal_list) + len(free_list) == 0:
+            return ''
+        elif min_height is not None:
             height, width, channel = img.shape
             ratio = canvas_size / max(height, width)
             starting_boxes = len(horizontal_list) + len(free_list)
