@@ -50,11 +50,11 @@ def save_recognizer(model_in, model_out):
 
 
 if __name__ == '__main__':
-    if not os.path.isdir('compat_models'):
-        os.mkdir('compat_models')
+    if not os.path.isdir('torchserve/compat_models'):
+        os.makedirs('torchserve/compat_models')
     try:
-        save_detector(os.path.expanduser('~/.EasyOCR/model/craft_mlt_25k.pth'), 'compat_models/craft.pth')
-        save_recognizer(os.path.expanduser('~/.EasyOCR/model/latin.pth'), 'compat_models/text.pth')
+        save_detector(os.path.expanduser('~/.EasyOCR/model/craft_mlt_25k.pth'), 'torchserve/compat_models/craft.pth')
+        save_recognizer(os.path.expanduser('~/.EasyOCR/model/latin.pth'), 'torchserve/compat_models/text.pth')
     except:
-        save_detector('model/craft_mlt_25k.pth', 'compat_models/craft.pth')
-        save_recognizer('model/latin.pth', 'compat_models/text.pth')
+        save_detector('model/craft_mlt_25k.pth', 'torchserve/compat_models/craft.pth')
+        save_recognizer('model/latin.pth', 'torchserve/compat_models/text.pth')

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+python3 torchserve/save_compatible.py
+mkdir -p $HOME/.EasyOCR/model_store
+torch-model-archiver --model-name craft --version 1.0 --model-file torchserve/craft.py --serialized-file torchserve/compat_models/craft.pth --extra-files torchserve/craft_utils.py --export-path $HOME/.EasyOCR/model_store --handler torchserve/craft_handler.py -f
+torch-model-archiver --model-name text --version 1.0 --model-file torchserve/text.py --serialized-file torchserve/compat_models/text.pth --extra-files torchserve/text_utils.py --export-path $HOME/.EasyOCR/model_store --handler torchserve/text_handler.py -f
