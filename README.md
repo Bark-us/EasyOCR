@@ -207,6 +207,18 @@ Lastly, please understand that my priority will have to go to popular language o
 
 See [List of languages in development](https://github.com/JaidedAI/EasyOCR/issues/91)
 
+## Running TorchServe
+
+To launch TorchServe and initialize both CRAFT and recognition models:
+```
+bin/launch_ts
+```
+
+To stop TorchServe:
+```
+torchserve --stop
+```
+
 ## API Documentation
 
 #### `Reader` class
