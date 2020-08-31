@@ -2,7 +2,9 @@ import torch
 import torch.backends.cudnn as cudnn
 from collections import OrderedDict
 import os
+import glob
 
+from easyocr.easyocr import Reader
 from easyocr.craft import CRAFT
 from easyocr.model import Model
 
@@ -49,12 +51,14 @@ def save_recognizer(model_in, model_out):
     torch.save(recognizer.state_dict(), model_out)
 
 
-if __name__ == '__main__':
+def main():
     if not os.path.isdir('torchserve/compat_models'):
         os.makedirs('torchserve/compat_models')
-    try:
-        save_detector(os.path.expanduser('~/.EasyOCR/model/craft_mlt_25k.pth'), 'torchserve/compat_models/craft.pth')
-        save_recognizer(os.path.expanduser('~/.EasyOCR/model/latin.pth'), 'torchserve/compat_models/text.pth')
-    except:
-        save_detector('model/craft_mlt_25k.pth', 'torchserve/compat_models/craft.pth')
-        save_recognizer('model/latin.pth', 'torchserve/compat_models/text.pth')
+    if not os.path.isdir('~/.EasyOCR/model/') or glob.glob('~/.EasyOCR/model/*.pth') == 0:
+        Reader(['en'])
+    save_detector(os.path.expanduser('~/.EasyOCR/model/craft_mlt_25k.pth'), 'torchserve/compat_models/craft.pth')
+    save_recognizer(os.path.expanduser('~/.EasyOCR/model/latin.pth'), 'torchserve/compat_models/text.pth')
+
+
+if __name__ == '__main__':
+    main()
